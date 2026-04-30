@@ -1108,24 +1108,23 @@
     atualizarStatusFrete();
   }
 
-  /* ── atualiza informativo de status do frete ── */
+  /* ── atualiza informativo de status do frete (pré-cálculo) ── */
   function atualizarStatusFrete() {
-    const incluirFrete = freteObrigatorio || freteManual;
-    const box  = document.getElementById('freteStatusBox');
-    const msg  = document.getElementById('freteStatusMsg');
+    const box = document.getElementById('freteStatusBox');
+    const msg = document.getElementById('freteStatusMsg');
 
     if (freteObrigatorio) {
-      box.style.background   = 'var(--green-bg)';
-      box.style.borderColor  = 'var(--green-border)';
-      msg.innerHTML = '✅ O frete é <strong>obrigatório</strong> e será incluído automaticamente no custo total e no preço de venda.';
+      box.style.background  = 'var(--green-bg)';
+      box.style.borderColor = 'var(--green-border)';
+      msg.innerHTML = '✅ O frete é <strong>obrigatório</strong> e será incluído no custo total e no preço de venda.';
     } else if (freteManual) {
-      box.style.background   = 'var(--yellow-light)';
-      box.style.borderColor  = 'var(--yellow-border)';
-      msg.innerHTML = '⚡ O frete <strong>não é obrigatório</strong>, mas você optou por incluí-lo no cálculo do preço de venda.';
+      box.style.background  = 'var(--yellow-light)';
+      box.style.borderColor = 'var(--yellow-border)';
+      msg.innerHTML = '⚡ Frete <strong>não obrigatório</strong>, mas você optou por incluí-lo no cálculo.';
     } else {
-      box.style.background   = 'var(--surface)';
-      box.style.borderColor  = 'var(--border)';
-      msg.innerHTML = 'O frete <strong>não</strong> será incluído no cálculo. Se preenchido, aparece apenas como referência no resultado.';
+      box.style.background  = 'var(--surface)';
+      box.style.borderColor = 'var(--border)';
+      msg.innerHTML = 'Se o preço calculado atingir o limite de isenção (' + brl(num('taxaFixaLim')) + '), o frete será <strong>incluído automaticamente</strong>. Caso contrário, só entrará se marcado acima.';
     }
   }
 
@@ -1142,7 +1141,9 @@
     </div>`;
   }
 
-  /* ── CÁLCULO ── */
+  /* ════════════════════════════════════════
+     CÁLCULO — 3 etapas
+  ════════════════════════════════════════ */
   function calcular() {
     const produto   = num('cProduto');
     const embalagem = num('cEmbalagem');
@@ -1154,14 +1155,6 @@
     const tfVal     = num('taxaFixaVal');
     const tfLim     = num('taxaFixaLim');
 
-    /* Determina se frete entra no custo */
-    const incluirFrete = freteObrigatorio || freteManual;
-    const freteNoCusto = incluirFrete ? freteVal : 0;
-
-    /* custo base (sem taxa fixa) */
-    const custoBase = produto + embalagem + outros + freteNoCusto;
-
-    /* denominador compartilhado */
     const pcts = comPct + impPct + marPct;
     const div  = 1 - pcts;
 
@@ -1170,10 +1163,36 @@
       return;
     }
 
-    /* PASSO 1 — preço sem taxa fixa */
+    /* ─── ETAPA 1: preço sem frete e sem taxa fixa ─── */
+    const custoSemFrete   = produto + embalagem + outros;
+    const precoSemFrete   = custoSemFrete / div;
+
+    /* ─── ETAPA 2: decidir se frete entra ─── */
+    /*
+      Motivo A: obrigatório marcado pelo usuário
+      Motivo B: manual marcado pelo usuário
+      Motivo C: automático — preço sem frete já atinge o limite de isenção e há frete preenchido
+    */
+    let motivoFrete = null; // null = não inclui
+
+    if (freteObrigatorio) {
+      motivoFrete = 'obrigatorio';
+    } else if (freteManual) {
+      motivoFrete = 'manual';
+    } else if (freteVal > 0 && precoSemFrete >= tfLim) {
+      motivoFrete = 'automatico';
+    }
+
+    const freteNoCusto = motivoFrete ? freteVal : 0;
+    const incluirFrete = motivoFrete !== null;
+
+    /* ─── ETAPA 3: custo base com ou sem frete + taxa fixa ─── */
+    const custoBase = custoSemFrete + freteNoCusto;
+
+    /* PASSO 3a — preço inicial (com frete decidido, sem taxa fixa) */
     const precoInicial = custoBase / div;
 
-    /* PASSO 2 — aplicar taxa fixa se necessário */
+    /* PASSO 3b — taxa fixa automática */
     let taxaAplicada = 0;
     let custoTotal   = custoBase;
     let precoFinal   = precoInicial;
@@ -1189,13 +1208,10 @@
     const valImp   = precoFinal * impPct;
     const lucro    = precoFinal * marPct;
     const marFinal = (lucro / precoFinal) * 100;
-    /* pctFrete usa o valor do frete INFORMADO, mesmo que não esteja no cálculo
-       (para alertar quando for alto em relação ao preço final) */
     const pctFrete = (incluirFrete && precoFinal > 0) ? (freteNoCusto / precoFinal) * 100 : 0;
 
     /* ── hero ── */
-    const precoStr = precoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    txt('r-preco',  precoStr);
+    txt('r-preco',  precoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     txt('r-lucro',  brl(lucro));
     txt('r-ctotal', brl(custoTotal));
     txt('r-mfinal', pct(marFinal));
@@ -1218,19 +1234,26 @@
     }
 
     /* ── breakdown frete ── */
-    const frEl    = document.getElementById('r-freteval');
+    const frEl     = document.getElementById('r-freteval');
     const frInclEl = document.getElementById('r-freteincl');
+
+    const labelMotivoMap = {
+      obrigatorio: '✅ Incluído — marcado como obrigatório',
+      manual:      '✅ Incluído — adicionado manualmente',
+      automatico:  '✅ Incluído automaticamente (preço ≥ ' + brl(tfLim) + ')',
+    };
+
     if (incluirFrete) {
       txt('r-freteval',  brl(freteNoCusto));
       txt('r-fretepct',  pct(pctFrete) + ' do preço de venda');
-      txt('r-freteincl', freteObrigatorio ? '✅ Incluído (obrigatório)' : '✅ Incluído (manual)');
-      frEl.className     = 'bd-value';
+      txt('r-freteincl', labelMotivoMap[motivoFrete]);
+      frEl.className       = 'bd-value';
       frInclEl.style.color = 'var(--green)';
     } else {
       txt('r-freteval',  freteVal > 0 ? brl(freteVal) : 'R$ 0,00');
       txt('r-fretepct',  freteVal > 0 ? 'Somente referência' : 'Não preenchido');
       txt('r-freteincl', '— Não incluído no cálculo');
-      frEl.className     = 'bd-value dim';
+      frEl.className       = 'bd-value dim';
       frInclEl.style.color = 'var(--ink-3)';
     }
 
@@ -1262,12 +1285,17 @@
     if (taxaAplicada > 0)
       box.innerHTML += mkAlert('warn', '🏷️',
         'Taxa fixa aplicada. ',
-        'O preço inicial (' + brl(precoInicial) + ') estava abaixo de ' + brl(tfLim) + '. Foi adicionada a taxa de ' + brl(taxaAplicada) + ' e o preço foi recalculado.');
+        'O preço inicial (' + brl(precoInicial) + ') estava abaixo de ' + brl(tfLim) + '. A taxa de ' + brl(taxaAplicada) + ' foi somada ao custo e o preço foi recalculado.');
 
     if (taxaFixaAtiva && precoFinal >= (tfLim - 9) && precoFinal < tfLim)
       box.innerHTML += mkAlert('tip', '💡',
         'Vale testar acima de ' + brl(tfLim) + '. ',
         'Seu preço está na faixa de risco da taxa fixa. Aumentar levemente pode eliminar essa taxa e preservar sua margem.');
+
+    if (motivoFrete === 'automatico')
+      box.innerHTML += mkAlert('tip', '🚚',
+        'Frete incluído automaticamente. ',
+        'O preço sem frete (' + brl(precoSemFrete) + ') ficou acima de ' + brl(tfLim) + ', então o frete de ' + brl(freteVal) + ' foi incluído automaticamente no custo e o preço foi recalculado.');
 
     if (incluirFrete && pctFrete > 15)
       box.innerHTML += mkAlert('warn', '🚚',
@@ -1275,9 +1303,9 @@
         'O frete representa ' + pct(pctFrete) + ' do preço de venda, acima dos 15% recomendados. Considere renegociar o frete ou ajustar o preço.');
 
     if (!incluirFrete && freteVal > 0)
-      box.innerHTML += mkAlert('tip', '🚚',
+      box.innerHTML += mkAlert('warn', '🚚',
         'Frete não incluído no cálculo. ',
-        'Você informou ' + brl(freteVal) + ' de frete, mas ele não está sendo considerado no preço. Se esse custo é real, ative a inclusão do frete para não perder margem.');
+        'Você informou ' + brl(freteVal) + ' de frete, mas ele não entrou no preço — o preço sem frete (' + brl(precoSemFrete) + ') ficou abaixo de ' + brl(tfLim) + '. Marque como obrigatório ou inclua manualmente se esse custo for seu.');
 
     if (!impostoAtivo)
       box.innerHTML += mkAlert('warn', '🧾',
