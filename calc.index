@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora de Preço — Mercado Livre</title>
+  <meta name="description" content="Calcule o preço ideal de venda no Mercado Livre com taxa fixa automática, comissão, frete, imposto e margem." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --y:   #FFE600;
+      --yd:  #C8B800;
+      --yg:  rgba(255,230,0,.2);
+      --blk: #0F0F0F;
+      --pg:  #EFEFEC;
+      --cd:  #FFFFFF;
+      --bd:  #E2E2DE;
+      --tx:  #181818;
+      --mu:  #717171;
+      --re:  #C62828;
+      --r:   13px;
+      --sh:  0 1px 3px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.06);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--pg);
+      color: var(--tx);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--blk);
+      padding: 16px 18px 14px;
+      display: flex; align-items: center; gap: 11px;
+      position: sticky; top: 0; z-index: 99;
+      box-shadow: 0 2px 18px rgba(0,0,0,.28);
+    }
+    .logo {
+      width: 38px; height: 38px; border-radius: 8px;
+      background: var(--y);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px;
+      color: var(--blk); flex-shrink: 0;
+    }
+    .hd h1 { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
+    .hd h1 em { color: var(--y); font-style: normal; }
+    .hd p { font-size: 11px; color: #666; margin-top: 2px; }
+
+    /* LAYOUT */
+    .wrap { max-width: 700px; margin: 0 auto; padding: 20px 13px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* CARD */
+    .card { background: var(--cd); border-radius: var(--r); box-shadow: var(--sh); overflow: hidden; }
+    .ch { padding: 13px 17px 11px; border-bottom: 1px solid var(--bd); display: flex; align-items: center; gap: 8px; }
+    .ci { width: 28px; height: 28px; background: var(--y); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .ct { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; }
+    .cb { padding: 16px 17px; display: flex; flex-direction: column; gap: 13px; }
+
+    /* GRID */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    @media (max-width: 500px) { .g2 { grid-template-columns: 1fr; } }
+
+    /* FIELD */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 10.5px; font-weight: 600; color: var(--mu); text-transform: uppercase; letter-spacing: .5px; }
+
+    /* INPUT */
+    .iw { position: relative; }
+    .ip { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--mu); pointer-events: none; }
+    .is { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--mu); pointer-events: none; }
+
+    input[type="number"] {
+      width: 100%; height: 46px;
+      border: 2px solid var(--bd); border-radius: 8px;
+      background: #F8F8F6;
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; color: var(--tx);
+      outline: none;
+      transition: border-color .14s, box-shadow .14s;
+      -webkit-appearance: none; appearance: none;
+    }
+    input[type="number"].pl { padding: 0 11px 0 28px; }
+    input[type="number"].pr { padding: 0 28px 0 12px; }
+    input[type="number"]:focus { border-color: var(--yd); box-shadow: 0 0 0 3px var(--yg); background: #fff; }
+    input[type="number"]:disabled { opacity: .35; cursor: not-allowed; background: #F0F0EE; }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    /* TOGGLE TIPO ANÚNCIO */
+    .trow { display: flex; gap: 7px; }
+    .tbtn {
+      flex: 1; height: 46px;
+      border: 2px solid var(--bd); border-radius: 8px;
+      background: #F8F8F6;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; color: var(--mu);
+      cursor: pointer; transition: all .14s;
+    }
+    .tbtn.on { border-color: var(--blk); background: var(--blk); color: var(--y); }
+
+    /* TOGGLE SIM / NÃO */
+    .sn-row { display: flex; align-items: center; gap: 10px; }
+    .sn-label { font-size: 13px; font-weight: 500; color: var(--tx); flex: 1; }
+    .sn-label small { display: block; font-size: 11px; color: var(--mu); margin-top: 2px; font-weight: 400; }
+    .sn-toggle { display: flex; border: 2px solid var(--bd); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+    .sn-btn {
+      padding: 0 15px; height: 38px; min-width: 48px;
+      border: none; background: #F8F8F6;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; color: var(--mu);
+      cursor: pointer; transition: all .13s;
+    }
+    .sn-btn + .sn-btn { border-left: 1px solid var(--bd); }
+    .sn-btn.on-sim { background: #1B5E20; color: #fff; }
+    .sn-btn.on-nao { background: #B71C1C; color: #fff; }
+
+    /* SUBPAINEL TAXA FIXA */
+    .subpanel {
+      background: #F8F8F6; border: 1px solid var(--bd); border-radius: 9px;
+      padding: 14px 15px; display: flex; flex-direction: column; gap: 12px;
+      transition: opacity .18s;
+    }
+    .subpanel.off { opacity: .35; pointer-events: none; }
+
+    /* SEPARADOR */
+    .sep { height: 1px; background: var(--bd); }
+    .hint { font-size: 11px; color: #bbb; line-height: 1.5; }
+
+    /* BOTÃO CALCULAR */
+    .btn {
+      width: 100%; height: 52px;
+      background: var(--y); border: none; border-radius: 10px;
+      font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; color: var(--blk);
+      cursor: pointer; letter-spacing: .3px;
+      box-shadow: 0 4px 0 var(--yd);
+      position: relative; top: 0;
+      transition: top .1s, box-shadow .1s, background .12s;
+    }
+    .btn:hover { background: #FFD500; }
+    .btn:active { top: 4px; box-shadow: none; }
+
+    /* RESULTADO */
+    #rw { display: flex; flex-direction: column; gap: 14px; animation: fu .3s ease; }
+
+    .hero {
+      background: var(--blk); border-radius: var(--r);
+      padding: 24px 18px 20px; text-align: center;
+    }
+    .h-lbl { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 5px; }
+    .h-price { font-family: 'Syne', sans-serif; font-size: 50px; font-weight: 800; color: var(--y); line-height: 1; letter-spacing: -1.5px; }
+    .h-badge {
+      display: inline-block; margin-top: 8px;
+      background: rgba(255,255,255,.08); border-radius: 20px;
+      padding: 4px 12px; font-size: 11px; color: #888;
+    }
+    .h-stats {
+      display: flex; justify-content: space-around; gap: 8px;
+      margin-top: 16px;
+      background: rgba(255,255,255,.05); border-radius: 8px; padding: 13px 10px;
+    }
+    .hsi { text-align: center; }
+    .hsi-v { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: #fff; }
+    .hsi-v.grn { color: #66BB6A; }
+    .hsi-l { font-size: 10px; color: #555; margin-top: 3px; }
+
+    /* BREAKDOWN */
+    .bk { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    @media (max-width: 380px) { .bk { grid-template-columns: 1fr; } }
+    .bi { background: #F8F8F6; border: 1px solid var(--bd); border-radius: 8px; padding: 11px 13px; }
+    .bi-l { font-size: 10px; font-weight: 600; color: var(--mu); text-transform: uppercase; letter-spacing: .4px; }
+    .bi-v { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: var(--tx); margin-top: 3px; }
+    .bi-v.red { color: var(--re); }
+    .bi-v.grn { color: #2E7D32; }
+    .bi-v.dim { color: #aaa; font-size: 14px; font-weight: 500; }
+    .bi-s { font-size: 10px; color: var(--mu); margin-top: 2px; }
+
+    /* ALERTAS */
+    .alerts { display: flex; flex-direction: column; gap: 8px; }
+    .alrt { border-radius: 8px; padding: 11px 13px; font-size: 13px; font-weight: 500; display: flex; align-items: flex-start; gap: 8px; animation: fu .22s ease; }
+    .ai { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .alrt.warn { background: #FFF8E1; border: 1px solid #FFD54F; color: #6B4800; }
+    .alrt.err  { background: #FFEBEE; border: 1px solid #EF9A9A; color: #7B1818; }
+    .alrt.ok   { background: #E8F5E9; border: 1px solid #81C784; color: #1B5E20; }
+    .alrt.tip  { background: #E3F2FD; border: 1px solid #90CAF9; color: #0D47A1; }
+
+    .note { text-align: center; font-size: 11px; color: #bbb; line-height: 1.7; padding: 0 10px; }
+    .hidden { display: none !important; }
+
+    @keyframes fu { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ML</div>
+  <div class="hd">
+    <h1>Calculadora <em>Mercado Livre</em></h1>
+    <p>Preço de venda com margem real</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ① CUSTOS -->
+  <div class="card">
+    <div class="ch"><div class="ci">📦</div><span class="ct">Custos do Produto</span></div>
+    <div class="cb">
+      <div class="g2">
+        <div class="field">
+          <label>Custo do Produto</label>
+          <div class="iw"><span class="ip">R$</span>
+            <input type="number" id="cProduto" class="pl" min="0" step="0.01" placeholder="0,00" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Custo da Embalagem</label>
+          <div class="iw"><span class="ip">R$</span>
+            <input type="number" id="cEmbalagem" class="pl" min="0" step="0.01" placeholder="0,00" />
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Outros Custos Operacionais</label>
+        <div class="iw"><span class="ip">R$</span>
+          <input type="number" id="cOutros" class="pl" min="0" step="0.01" placeholder="0,00" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② TAXAS ML -->
+  <div class="card">
+    <div class="ch"><div class="ci">🛒</div><span class="ct">Taxas do Mercado Livre</span></div>
+    <div class="cb">
+
+      <!-- tipo de anúncio -->
+      <div class="field">
+        <label>Tipo de Anúncio</label>
+        <div class="trow">
+          <button class="tbtn on" id="btnC" onclick="setTipo('classico')">Clássico</button>
+          <button class="tbtn"    id="btnP" onclick="setTipo('premium')">Premium</button>
+        </div>
+      </div>
+
+      <!-- comissão -->
+      <div class="field">
+        <label>Comissão ML (%)</label>
+        <div class="iw">
+          <input type="number" id="comissao" class="pr" min="0" max="100" step="0.1" value="16" />
+          <span class="is">%</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- taxa fixa automática -->
+      <div class="sn-row">
+        <div class="sn-label">
+          Taxa fixa automática
+          <small>Aplica R$6,75 quando o preço final for menor que R$79,00</small>
+        </div>
+        <div class="sn-toggle">
+          <button class="sn-btn on-sim" id="tfSim" onclick="setTaxaFixa(true)">SIM</button>
+          <button class="sn-btn"        id="tfNao" onclick="setTaxaFixa(false)">NÃO</button>
+        </div>
+      </div>
+
+      <div class="subpanel" id="tfPanel">
+        <div class="g2">
+          <div class="field">
+            <label>Valor da Taxa Fixa (R$)</label>
+            <div class="iw"><span class="ip">R$</span>
+              <input type="number" id="taxaFixaVal" class="pl" min="0" step="0.01" value="6.75" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Limite p/ Isenção (R$)</label>
+            <div class="iw"><span class="ip">R$</span>
+              <input type="number" id="taxaFixaLim" class="pl" min="0" step="0.01" value="79.00" />
+            </div>
+          </div>
+        </div>
+        <p class="hint">Se o preço calculado ficar abaixo do limite, a taxa é somada ao custo e o preço é recalculado automaticamente.</p>
+      </div>
+
+      <p class="hint">✏️ Edite os valores conforme sua categoria e preço no Mercado Livre.</p>
+    </div>
+  </div>
+
+  <!-- ③ FRETE -->
+  <div class="card">
+    <div class="ch"><div class="ci">🚚</div><span class="ct">Frete</span></div>
+    <div class="cb">
+      <div class="field">
+        <label>Custo do Frete / Participação no Frete Grátis (R$)</label>
+        <div class="iw"><span class="ip">R$</span>
+          <input type="number" id="frete" class="pl" min="0" step="0.01" placeholder="0,00" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ IMPOSTO -->
+  <div class="card">
+    <div class="ch"><div class="ci">🧾</div><span class="ct">Imposto</span></div>
+    <div class="cb">
+
+      <div class="sn-row">
+        <div class="sn-label">
+          Considerar imposto no cálculo
+          <small>Desative se for MEI, isento ou Simples com alíquota zero</small>
+        </div>
+        <div class="sn-toggle">
+          <button class="sn-btn"        id="impSim" onclick="setImposto(true)">SIM</button>
+          <button class="sn-btn on-nao" id="impNao" onclick="setImposto(false)">NÃO</button>
+        </div>
+      </div>
+
+      <div class="field" id="impField" style="opacity:.35;pointer-events:none;">
+        <label>Alíquota do Imposto (%)</label>
+        <div class="iw">
+          <input type="number" id="imposto" class="pr" min="0" max="100" step="0.1" value="6" disabled />
+          <span class="is">%</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ⑤ MARGEM -->
+  <div class="card">
+    <div class="ch"><div class="ci">📈</div><span class="ct">Margem de Lucro Desejada</span></div>
+    <div class="cb">
+      <div class="field">
+        <label>Margem Desejada (%)</label>
+        <div class="iw">
+          <input type="number" id="margem" class="pr" min="0" max="100" step="0.5" value="25" />
+          <span class="is">%</span>
+        </div>
+      </div>
+      <p class="hint">Recomendado: mínimo 20% para cobrir riscos e imprevistos no Mercado Livre.</p>
+    </div>
+  </div>
+
+  <!-- BOTÃO -->
+  <button class="btn" onclick="calcular()">⚡ CALCULAR PREÇO IDEAL</button>
+
+  <!-- RESULTADO -->
+  <div id="rw" class="hidden">
+
+    <div class="hero">
+      <div class="h-lbl">Preço Ideal de Venda</div>
+      <div class="h-price" id="r-preco">R$ 0,00</div>
+      <div class="h-badge" id="r-badge">Anúncio Clássico</div>
+      <div class="h-stats">
+        <div class="hsi">
+          <div class="hsi-v grn" id="r-lucro">R$ 0,00</div>
+          <div class="hsi-l">Lucro Líquido</div>
+        </div>
+        <div class="hsi">
+          <div class="hsi-v" id="r-mfinal">0%</div>
+          <div class="hsi-l">Margem Final</div>
+        </div>
+        <div class="hsi">
+          <div class="hsi-v" id="r-ctotal">R$ 0,00</div>
+          <div class="hsi-l">Custo Total</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch"><div class="ci">🔍</div><span class="ct">Detalhamento do Preço</span></div>
+      <div class="cb">
+        <div class="bk">
+          <div class="bi">
+            <div class="bi-l">Comissão ML</div>
+            <div class="bi-v red" id="r-comval">—</div>
+            <div class="bi-s"    id="r-compct">—</div>
+          </div>
+          <div class="bi">
+            <div class="bi-l">Imposto</div>
+            <div class="bi-v"   id="r-impval">—</div>
+            <div class="bi-s"   id="r-imppct">—</div>
+          </div>
+          <div class="bi">
+            <div class="bi-l">Frete</div>
+            <div class="bi-v"   id="r-freteval">—</div>
+            <div class="bi-s"   id="r-fretepct">—</div>
+          </div>
+          <div class="bi">
+            <div class="bi-l">Taxa Fixa ML</div>
+            <div class="bi-v"   id="r-taxaval">—</div>
+            <div class="bi-s"   id="r-taxasub">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alerts" id="alerts"></div>
+
+  </div>
+
+  <p class="note">
+    Taxas variam por categoria, preço e tipo de anúncio.<br />
+    Verifique sempre na Central de Vendedores do Mercado Livre.
+  </p>
+
+</div>
+
+<script>
+  /* estado */
+  let taxaFixaAtiva = true;
+  let impostoAtivo  = false;
+  let tipoAnuncio   = 'classico';
+
+  /* tipo anúncio */
+  function setTipo(t) {
+    tipoAnuncio = t;
+    document.getElementById('btnC').classList.toggle('on', t === 'classico');
+    document.getElementById('btnP').classList.toggle('on', t === 'premium');
+    document.getElementById('comissao').value = t === 'classico' ? 16 : 17.5;
+  }
+
+  /* taxa fixa */
+  function setTaxaFixa(v) {
+    taxaFixaAtiva = v;
+    document.getElementById('tfSim').className = 'sn-btn' + (v  ? ' on-sim' : '');
+    document.getElementById('tfNao').className = 'sn-btn' + (!v ? ' on-nao' : '');
+    document.getElementById('tfPanel').classList.toggle('off', !v);
+  }
+
+  /* imposto */
+  function setImposto(v) {
+    impostoAtivo = v;
+    document.getElementById('impSim').className = 'sn-btn' + (v  ? ' on-sim' : '');
+    document.getElementById('impNao').className = 'sn-btn' + (!v ? ' on-nao' : '');
+    const f = document.getElementById('impField');
+    const i = document.getElementById('imposto');
+    f.style.opacity       = v ? '1'    : '.35';
+    f.style.pointerEvents = v ? 'auto' : 'none';
+    i.disabled = !v;
+  }
+
+  /* helpers */
+  const brl = v  => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const pct = v  => v.toFixed(1).replace('.', ',') + '%';
+  const num = id => parseFloat(document.getElementById(id).value) || 0;
+  const txt = (id, v) => { document.getElementById(id).textContent = v; };
+
+  function alrt(tipo, ico, msg) {
+    return `<div class="alrt ${tipo}"><span class="ai">${ico}</span><span>${msg}</span></div>`;
+  }
+
+  /* CÁLCULO */
+  function calcular() {
+    const produto    = num('cProduto');
+    const embalagem  = num('cEmbalagem');
+    const outros     = num('cOutros');
+    const comPct     = num('comissao')    / 100;
+    const freteVal   = num('frete');
+    const impPct     = impostoAtivo ? num('imposto') / 100 : 0;
+    const marPct     = num('margem')      / 100;
+    const tfVal      = num('taxaFixaVal');
+    const tfLim      = num('taxaFixaLim');
+
+    /* custo base sem taxa fixa */
+    const custoBase = produto + embalagem + outros + freteVal;
+
+    /* denominador */
+    const pcts = comPct + impPct + marPct;
+    const div  = 1 - pcts;
+
+    if (div <= 0) {
+      alert('A soma de comissão + imposto + margem deve ser menor que 100%.\nRevise os valores e tente novamente.');
+      return;
+    }
+
+    /* PASSO 1 — preço sem taxa fixa */
+    const precoInicial = custoBase / div;
+
+    /* PASSO 2 — aplicar taxa fixa se necessário */
+    let taxaAplicada = 0;
+    let custoTotal   = custoBase;
+    let precoFinal   = precoInicial;
+
+    if (taxaFixaAtiva && precoInicial < tfLim) {
+      taxaAplicada = tfVal;
+      custoTotal   = custoBase + taxaAplicada;
+      precoFinal   = custoTotal / div;
+    }
+
+    /* derivados */
+    const valCom   = precoFinal * comPct;
+    const valImp   = precoFinal * impPct;
+    const lucro    = precoFinal * marPct;
+    const marFinal = (lucro / precoFinal) * 100;
+    const pctFrete = precoFinal > 0 ? (freteVal / precoFinal) * 100 : 0;
+
+    /* ── hero ── */
+    txt('r-preco',  brl(precoFinal));
+    txt('r-lucro',  brl(lucro));
+    txt('r-ctotal', brl(custoTotal));
+    txt('r-mfinal', pct(marFinal));
+    txt('r-badge',  'Anúncio ' + (tipoAnuncio === 'classico' ? 'Clássico' : 'Premium'));
+
+    /* ── breakdown ── */
+    txt('r-comval', brl(valCom));
+    txt('r-compct', pct(comPct * 100) + ' do preço');
+
+    if (impostoAtivo) {
+      txt('r-impval', brl(valImp));
+      txt('r-imppct', pct(impPct * 100) + ' do preço');
+      document.getElementById('r-impval').className = 'bi-v red';
+    } else {
+      txt('r-impval', 'Não considerado');
+      txt('r-imppct', 'Imposto desativado');
+      document.getElementById('r-impval').className = 'bi-v dim';
+    }
+
+    txt('r-freteval', brl(freteVal));
+    txt('r-fretepct', pct(pctFrete) + ' do preço');
+
+    if (!taxaFixaAtiva) {
+      txt('r-taxaval', 'Desativada');
+      txt('r-taxasub', 'Taxa fixa desligada');
+      document.getElementById('r-taxaval').className = 'bi-v dim';
+    } else if (taxaAplicada > 0) {
+      txt('r-taxaval', brl(taxaAplicada));
+      txt('r-taxasub', 'Preço inicial: ' + brl(precoInicial));
+      document.getElementById('r-taxaval').className = 'bi-v red';
+    } else {
+      txt('r-taxaval', 'Não aplicada');
+      txt('r-taxasub', 'Preço ≥ ' + brl(tfLim));
+      document.getElementById('r-taxaval').className = 'bi-v grn';
+    }
+
+    /* ── alertas ── */
+    const box = document.getElementById('alerts');
+    box.innerHTML = '';
+
+    /* 1 — margem baixa */
+    if (marFinal < 20)
+      box.innerHTML += alrt('err', '⚠️',
+        '<strong>Margem baixa!</strong> A margem líquida de ' + pct(marFinal) +
+        ' está abaixo dos 20% recomendados para o Mercado Livre. Revise seus custos ou aumente a margem desejada.');
+
+    /* 2 — taxa fixa foi aplicada */
+    if (taxaAplicada > 0)
+      box.innerHTML += alrt('warn', '🏷️',
+        '<strong>Taxa fixa aplicada.</strong> O preço inicial (' + brl(precoInicial) +
+        ') estava abaixo de ' + brl(tfLim) + '. Foi adicionada a taxa de ' + brl(taxaAplicada) +
+        ' e o preço foi recalculado.');
+
+    /* 3 — preço final próximo do limite (zona de risco) */
+    if (taxaFixaAtiva && precoFinal >= (tfLim - 9) && precoFinal < tfLim)
+      box.innerHTML += alrt('tip', '💡',
+        '<strong>Vale testar acima de ' + brl(tfLim) + '.</strong> Seu preço está na faixa de risco da taxa fixa. ' +
+        'Aumentar levemente pode eliminar essa taxa e preservar a margem.');
+
+    /* 4 — frete alto */
+    if (pctFrete > 15)
+      box.innerHTML += alrt('warn', '🚚',
+        '<strong>Frete alto!</strong> O frete representa ' + pct(pctFrete) +
+        ' do preço de venda, acima dos 15% recomendados. Considere renegociar o frete ou ajustar o preço.');
+
+    /* 5 — imposto desativado */
+    if (!impostoAtivo)
+      box.innerHTML += alrt('warn', '🧾',
+        '<strong>Imposto não considerado.</strong> Ative se você recolhe tributos sobre as vendas (Simples Nacional, ICMS, ISS, etc.).');
+
+    /* 6 — tudo ok */
+    if (marFinal >= 20 && taxaAplicada === 0 && pctFrete <= 15 && impostoAtivo)
+      box.innerHTML += alrt('ok', '✅',
+        '<strong>Precificação saudável!</strong> Lucro estimado de ' + brl(lucro) +
+        ' com margem de ' + pct(marFinal) + '. Nenhum alerta identificado.');
+
+    /* scroll */
+    const rw = document.getElementById('rw');
+    rw.classList.remove('hidden');
+    setTimeout(() => rw.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') calcular(); });
+</script>
+
+</body>
+</html>
